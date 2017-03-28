@@ -162,7 +162,7 @@ def extractPrintSaveIntermittens():
         firstFailedStr = firstFailedTS.strftime("%a %b %d %H:%M:%S %Y %Z")
         recentFail = parser.parse(time.ctime(max(g_summary_dict_intermittents["TestInfo"][ind]["Timestamp"]))+ ' '+localtz)
         recentFailStr = recentFail.strftime("%a %b %d %H:%M:%S %Y %Z")
-        print("Intermittent: {0} last failed at {1} and has failed {2} times since {3}."
+        print("Intermittent: {0} last failed at {1} and has failed {2} times since "
               "{3}.".format(testName, recentFailStr, numberFailure, firstFailedStr))
     # save dict in file
     if len(g_summary_dict_intermittents["TestName"]) > 0:
