@@ -2,7 +2,6 @@
 
 import sys
 import os
-import subprocess
 from os import listdir
 from os.path import isfile, join
 import time
@@ -154,15 +153,13 @@ def extractPrintSaveIntermittens():
         testName = g_summary_dict_intermittents["TestName"][ind]
         numberFailure = g_summary_dict_intermittents["TestInfo"][ind]["FailureCount"]
         firstFailedTS = min(g_summary_dict_intermittents["TestInfo"][ind]["Timestamp"])
+        recentFail = max(g_summary_dict_intermittents["TestInfo"][ind]["Timestamp"])
 
-        print("Intermittent test: {0} has failed {1} times in the past since {2}".format(testName, numberFailure,
-                                                                                         time.ctime(firstFailedTS)))
+        print("Intermittent: {0} last failed at {1} and has failed {2} times since {3}."
+              "{3}.".format(testName, time.ctime(recentFail), numberFailure, time.ctime(firstFailedTS)))
     # save dict in file
     if len(g_summary_dict_intermittents["TestName"]) > 0:
         json.dump(g_summary_dict_intermittents, open(g_summary_dict_name, 'w'))
-        # with open(g_summary_dict_name, 'wb') as writeFile:
-        #     pickle.dump(g_summary_dict_intermittents, writeFile)
-
 
 def main(argv):
     """

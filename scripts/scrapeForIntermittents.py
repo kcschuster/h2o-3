@@ -5,6 +5,7 @@ import os
 import json
 import subprocess
 import time
+import datetime
 
 """
 This script will be invoked if it is included in the post-build action of an jenkin job and the job has failed.
@@ -38,6 +39,7 @@ g_failed_test_paths = []
 g_failed_tests_dict = ''    # contains the filename that contains failed tests info in a dictionary
 g_failed_tests_info_dict = dict()   # store failed tests info in a dictionary
 g_resource_url = ''
+g_timestring = ''
 
 def init_failed_tests_dict():
     """
@@ -49,7 +51,7 @@ def init_failed_tests_dict():
     g_failed_tests_info_dict["TestInfo"] = []
 
 
-def init_update_each_failed_test_dict(one_test_info, failed_test_path, newTest):
+def init_update_each_failed_test_dict(one_test_info, failed_test_path, testName, newTest):
     """
     For each test, a dictionary structure will be built to record the various info about that test's failure
     information.  In particular, for each failed tests, there will be a dictionary associated with that test
@@ -75,11 +77,12 @@ def init_update_each_failed_test_dict(one_test_info, failed_test_path, newTest):
         one_test_info["NodeName"] = []
         one_test_info["FailureMessages"] = [] # contains failure messages for the test
         one_test_info["FailureCount"] = 0
+        one_test_info["TestName"] = testName
 
 #    if g_timestamp not in one_test_info["Timestamp"]:
     one_test_info["JenkinsJobName"].append(g_job_name)
     one_test_info["BuildID"].append(g_build_id)
-    one_test_info["Timestamp"].append(g_timestamp)
+    one_test_info["Timestamp"].append(g_timestring)
     one_test_info["GitHash"].append(g_git_hash)
     one_test_info["TestCategory"].append(g_unit_test_type) # would be JUnit, PyUnit, RUnit or HadoopPyUnit, HadoopRUnit
     one_test_info["NodeName"].append(g_node_name)
@@ -187,7 +190,7 @@ def save_failed_tests_info():
         with open(g_summary_text_filename, 'a') as failed_file:
             for index in range(len(g_failed_testnames)):
 
-                testInfo = ','.join([str(g_timestamp), g_job_name, str(g_build_id), g_git_hash, g_node_name,
+                testInfo = ','.join([g_timestring, g_job_name, str(g_build_id), g_git_hash, g_node_name,
                                      g_unit_test_type, g_failed_testnames[index]])
                 failed_file.write(testInfo)
                 failed_file.write('\n')
@@ -212,10 +215,11 @@ def update_failed_test_info_dict(failed_testname, failed_test_path):
         g_failed_tests_info_dict["TestInfo"][g_failed_tests_info_dict["TestName"].index(failed_testname)] = \
             init_update_each_failed_test_dict(
                 g_failed_tests_info_dict["TestInfo"][g_failed_tests_info_dict["TestName"].index(failed_testname)],
-                failed_test_path, False)
+                failed_test_path, failed_testname, False)
     else:   # next test
         g_failed_tests_info_dict["TestName"].append(failed_testname)
-        g_failed_tests_info_dict["TestInfo"].append(init_update_each_failed_test_dict(dict(), failed_test_path, True))
+        g_failed_tests_info_dict["TestInfo"].append(init_update_each_failed_test_dict(dict(), failed_test_path,
+                                                                                      failed_testname, True))
 
 def trim_data_back_to(monthToKeep):
     """
@@ -246,7 +250,10 @@ def clean_up_failed_test_dict(oldest_time_allowed):
 
                 dict_index = 0
                 while (len(test_dicts["Timestamp"]) > 0) and (dict_index < len(test_dicts["Timestamp"])):
-                    if (test_dicts["Timestamp"][dict_index] < oldest_time_allowed):
+                    float_ts = time.mktime(datetime.datetime.strptime(test_dicts["Timestamp"][dict_index],
+                                                                      "%a %b %d %H:%M:%S %Y").timetuple())
+#                    if (test_dicts["Timestamp"][dict_index] < oldest_time_allowed):
+                    if (float_ts < oldest_time_allowed):
                         del test_dicts["JenkinsJobName"][dict_index]
                         del test_dicts["BuildID"][dict_index]
                         del test_dicts["Timestamp"][dict_index]
@@ -276,7 +283,7 @@ def clean_up_summary_text(oldest_time_allowed):
                 for each_line in text_file:
                     temp = each_line.split(',')
                     if len(temp) >= 7:
-                        timestamp = float(temp[0])
+                        timestamp = time.mktime(datetime.datetime.strptime(temp[0], "%a %b %d %H:%M:%S %Y").timetuple())
 
                         if (timestamp > oldest_time_allowed):
                             temp_file.write(each_line)
@@ -316,6 +323,7 @@ def main(argv):
     global g_summary_text_filename  # store failed test info in csv format
     global g_failed_tests_dict      # store failed test info as a dictionary
     global g_resource_url
+    global g_timestring
 
     if len(argv) < 11:
         print "Wrong call.  Not enough arguments.\n"
@@ -331,6 +339,7 @@ def main(argv):
         g_unit_test_type = argv[6]
         g_jenkins_url = argv[7]
 
+        g_timestring = time.ctime(g_timestamp)
         g_temp_filename = os.path.join(g_test_root_dir,'tempText')
         g_summary_text_filename = os.path.join(g_test_root_dir, argv[8])
         g_failed_tests_dict = os.path.join(g_test_root_dir, argv[9])
