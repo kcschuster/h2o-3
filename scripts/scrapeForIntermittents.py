@@ -6,6 +6,8 @@ import json
 import subprocess
 import time
 import datetime
+from pytz import timezone
+from dateutil import parser
 
 """
 This script will be invoked if it is included in the post-build action of an jenkin job and the job has failed.
@@ -82,7 +84,7 @@ def init_update_each_failed_test_dict(one_test_info, failed_test_path, testName,
 #    if g_timestamp not in one_test_info["Timestamp"]:
     one_test_info["JenkinsJobName"].append(g_job_name)
     one_test_info["BuildID"].append(g_build_id)
-    one_test_info["Timestamp"].append(g_timestring)
+    one_test_info["Timestamp"].append(g_timestamp)
     one_test_info["GitHash"].append(g_git_hash)
     one_test_info["TestCategory"].append(g_unit_test_type) # would be JUnit, PyUnit, RUnit or HadoopPyUnit, HadoopRUnit
     one_test_info["NodeName"].append(g_node_name)
@@ -250,10 +252,7 @@ def clean_up_failed_test_dict(oldest_time_allowed):
 
                 dict_index = 0
                 while (len(test_dicts["Timestamp"]) > 0) and (dict_index < len(test_dicts["Timestamp"])):
-                    float_ts = time.mktime(datetime.datetime.strptime(test_dicts["Timestamp"][dict_index],
-                                                                      "%a %b %d %H:%M:%S %Y").timetuple())
-#                    if (test_dicts["Timestamp"][dict_index] < oldest_time_allowed):
-                    if (float_ts < oldest_time_allowed):
+                    if (test_dicts["Timestamp"][dict_index] < oldest_time_allowed):
                         del test_dicts["JenkinsJobName"][dict_index]
                         del test_dicts["BuildID"][dict_index]
                         del test_dicts["Timestamp"][dict_index]
@@ -283,7 +282,8 @@ def clean_up_summary_text(oldest_time_allowed):
                 for each_line in text_file:
                     temp = each_line.split(',')
                     if len(temp) >= 7:
-                        timestamp = time.mktime(datetime.datetime.strptime(temp[0], "%a %b %d %H:%M:%S %Y").timetuple())
+                        dateObj = parser.parse(temp[0]).timetuple()
+                        timestamp = time.mktime(dateObj)
 
                         if (timestamp > oldest_time_allowed):
                             temp_file.write(each_line)
@@ -339,7 +339,9 @@ def main(argv):
         g_unit_test_type = argv[6]
         g_jenkins_url = argv[7]
 
-        g_timestring = time.ctime(g_timestamp)
+        localtz = time.tzname[0]
+        dt = parser.parse(time.ctime(g_timestamp)+ ' '+localtz)
+        g_timestring = dt.strftime("%a %b %d %H:%M:%S %Y %Z")
         g_temp_filename = os.path.join(g_test_root_dir,'tempText')
         g_summary_text_filename = os.path.join(g_test_root_dir, argv[8])
         g_failed_tests_dict = os.path.join(g_test_root_dir, argv[9])
